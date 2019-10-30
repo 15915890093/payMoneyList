@@ -283,44 +283,60 @@ static NSString *payMoneyCellID = @"payMoneyCellID";
 }
 
 - (void)requestData {
+    
     [self hideErrorView];
     
     NSDictionary *param = @{@"type":@"0"};
     // 用钱计划列表查询
-    [PYNetRequest postForFund:PYFRequestType_yingmi_queryRedeemPlanList params:param completed:^(NSDictionary *responseDic) {
+        [PYNetRequest batchWork:[PYApi getPostUrlForFund:PYFRequestType_yingmi_queryRedeemPlanList] parameters:params group:group completion:^(NSDictionary *responseDic) {
         NSString *msg = nil;
         if ([PYNetRequest checkResponseDic:responseDic msg:&msg]) {
-            
+            NSDictionary *dic = [responseDic objectForKey:@"data"];
             NSString *money = [responseDic[@"data"] objectForKey:@"totalMoney" type:PYTypeString];
-            if (!EmptyString(money)) {
-                NSString *amount = [NSString stringToNumberFormat:[NSString stringWithFormat:@"%.2f",[money doubleValue]]];
-                self.turnMoneyLb.text = amount;
-            }
-            
-            NSArray *data = [responseDic[@"data"] objectForKey:@"list"];
-            [self.tillList removeAllObjects];
-            
-            if (!EmptyArray(data)) {
-                self.tillList = [PYSMPlanModel mj_objectArrayWithKeyValuesArray:data];
-            }
-            else{
-                [self showErrorView:@"暂无计划" imageName:@"py_nodata"];
-            }
-            
-            [_tableView reloadData];
-            
-            [CacheTool storeFundHttpCache:responseDic fRequest:PYFRequestType_yingmi_queryRedeemPlanList addUserId:YES];
-        }
-        else {
-            if (EmptyArray(self.tillList)) {
-                [self showErrorView:msg imageName:@"py_nodata"];
+                if (!EmptyString(money)) {
+                    NSString *amount = [NSString stringToNumberFormat:[NSString stringWithFormat:@"%.2f",[money doubleValue]]];
+                    self.turnMoneyLb.text = amount;
+                }
+                
+                NSArray *data = [responseDic[@"data"] objectForKey:@"list"];
+                [self.tillList removeAllObjects];
+                
+                if (!EmptyArray(data)) {
+                    self.tillList = [PYSMPlanModel mj_objectArrayWithKeyValuesArray:data];
+                }
+                else{
+                    [self showErrorView:@"暂无计划" imageName:@"py_nodata"];
+                }
+                
+                [_tableView reloadData];
+                
+                [CacheTool storeFundHttpCache:responseDic fRequest:PYFRequestType_yingmi_queryRedeemPlanList addUserId:YES];
             }
             else {
-                [app showToastView:msg];
+                if (EmptyArray(self.tillList)) {
+                    [self showErrorView:msg imageName:@"py_nodata"];
+                }
+                else {
+                    [app showToastView:msg];
+                }
             }
         }
-        [_indicatorView stopAnimating];
     }];
+    
+    //走马灯运营位
+    params = @{@"newCode":@"JJGG-JJSH",
+               @"newType":@"2",
+               @"fundOrGroupCode":@"000509"};
+    [PYNetRequest batchWork:[PYApi getPostUrlForFund:PYFRequestType_fundDetail_lantern] parameters:params group:group completion:^(NSDictionary *responseDic) {
+        NSString *msg = nil;
+        if ([PYNetRequest checkResponseDic:responseDic msg:&msg]) {
+            self.lanternData = [responseDic objectForKey:@"data"];
+        }
+    }];
+    
+    dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+        [_indicatorView stopAnimating];
+    });
 }
 
 - (void)historyList {
